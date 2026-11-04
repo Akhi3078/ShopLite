@@ -1,12 +1,13 @@
-using Catalog.Api.Domain;
+using Catalog.Domain.Entities;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
 
-namespace Catalog.Api.Infrastructure;
+namespace Catalog.Infrastructure.Persistence;
 
 /// <summary>
 /// Development-only sample data, so there is something to query on first run.
 /// </summary>
-internal static class SeedData
+public static class SeedData
 {
     public static async Task SeedCatalogAsync(this IServiceProvider services)
     {

@@ -1,4 +1,4 @@
-namespace Catalog.Api.Domain;
+namespace Catalog.Domain.Entities;
 
 /// <summary>
 /// A sellable product. Catalog owns description and price only.

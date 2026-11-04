@@ -59,7 +59,8 @@ Estimates assume ~6–8 hours per week.
 
 Not microservices yet. Goal: a single service worth copying five more times.
 
-- [x] Minimal APIs organised as **vertical slices** (feature folders), not Controllers/Services/Repositories layers
+- [x] Minimal APIs over **Clean Architecture** — four projects per service, dependencies pointing inward (superseded the original vertical-slice choice; see [ADR 0004](docs/adr/0004-clean-architecture-per-service.md))
+- [x] CQRS handlers without MediatR, `Result<T>` instead of exceptions for expected failures, FluentValidation in the Application layer
 - [x] EF Core against the local SQL Server instance + migrations (see "Local SQL Server setup" below)
 - [x] Built-in OpenAPI (`Microsoft.AspNetCore.OpenApi`) + Scalar UI — Swashbuckle is no longer the default
 - [x] Health checks — understand **liveness vs readiness** as two different endpoints with different meanings
@@ -239,21 +240,26 @@ That compensation branch is the whole curriculum in miniature: no distributed tr
 ```
 C:\DotnetMicroservices\
   global.json
-  ShopLite.sln
+  Directory.Build.props            # net10.0, nullable — applies to every project
+  Directory.Packages.props         # every NuGet version, declared once
+  ShopLite.slnx
   src/
     Aspire/
       ShopLite.AppHost/            # orchestration: services + SQL Server + Redis + Service Bus
       ShopLite.ServiceDefaults/    # telemetry, health, resilience, discovery
     BuildingBlocks/
       ShopLite.Contracts/          # integration events ONLY. no logic, no EF.
-      ShopLite.Shared/             # Result types, pagination, exception handling
     Services/
-      Catalog/      Catalog.Api/
-      Basket/       Basket.Api/
-      Ordering/     Ordering.Api/  Ordering.Domain/
-      Inventory/    Inventory.Api/
-      Payment/      Payment.Api/
-      Notification/ Notification.Worker/
+      Catalog/
+        Catalog.Domain/            # entities, invariants — ZERO references
+        Catalog.Application/       # use cases, ports, Result types
+        Catalog.Infrastructure/    # EF Core, DbContext, migrations
+        Catalog.Api/               # HTTP, OpenAPI, composition root
+      Basket/        ...           # same four layers
+      Ordering/      ...
+      Inventory/     ...
+      Payment/       ...
+      Notification/  ...           # .Worker in place of .Api
     Gateway/
       ShopLite.Gateway/
   tests/
@@ -264,10 +270,9 @@ C:\DotnetMicroservices\
     adr/                           # one short file per decision
 ```
 
-Two layout rules worth holding:
+Each service is four Clean Architecture projects — `.Domain`, `.Application`, `.Infrastructure`, `.Api` — with dependencies pointing inward. See [ARCHITECTURE.md §5](ARCHITECTURE.md) for the layer rules and [ADR 0004](docs/adr/0004-clean-architecture-per-service.md) for the reasoning.
 
-- `Contracts` is the **only** project services share.
-- A service gets extra projects (`.Domain`, `.Application`) only where the logic earns it — Ordering will, Catalog won't.
+One layout rule worth holding: `Contracts` is the **only** project services share.
 
 ### Local SQL Server setup
 

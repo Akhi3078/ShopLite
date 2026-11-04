@@ -1,5 +1,7 @@
-using Catalog.Api.Features.Products;
-using Catalog.Api.Infrastructure;
+using Catalog.Api.Endpoints;
+using Catalog.Application;
+using Catalog.Infrastructure;
+using Catalog.Infrastructure.Persistence;
 using Scalar.AspNetCore;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -8,10 +10,9 @@ var builder = WebApplication.CreateBuilder(args);
 // Every service in the solution calls this and nothing else for cross-cutting concerns.
 builder.AddServiceDefaults();
 
-// Aspire's EF Core integration. Beyond registering the DbContext it adds a readiness
-// health check, connection retry on transient faults, and database telemetry, all keyed
-// off the connection string named "catalogdb" supplied by the AppHost.
-builder.AddSqlServerDbContext<CatalogDbContext>("catalogdb");
+// The composition root: this is the only project that knows all the layers exist.
+builder.AddCatalogInfrastructure();
+builder.Services.AddCatalogApplication();
 
 builder.Services.AddOpenApi();
 

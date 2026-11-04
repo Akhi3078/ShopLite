@@ -1,4 +1,4 @@
-namespace Catalog.Api.Common;
+namespace Catalog.Application.Common;
 
 /// <summary>
 /// A page of results. Returned rather than a bare array so that adding pagination

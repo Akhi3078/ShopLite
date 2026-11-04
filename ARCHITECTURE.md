@@ -101,6 +101,45 @@ Two boundary decisions that are commonly got wrong:
 - **Stock belongs to Inventory, not Catalog.** `Product` has no quantity field. Availability and description change for different reasons, at different rates, under different load.
 - **Basket stores a price snapshot.** Checkout does not re-query Catalog. The price the customer saw is the price in the order.
 
+### Internal structure of a service
+
+Every service is four projects following Clean Architecture, with the dependency direction pointing inward:
+
+```
+  ┌────────────────────────────────────────────────┐
+  │  Api               HTTP · OpenAPI · wiring     │
+  │  ┌──────────────────────────────────────────┐  │
+  │  │ Infrastructure   EF Core · DbContext     │  │
+  │  │  ┌────────────────────────────────────┐  │  │
+  │  │  │ Application   use cases · ports    │  │  │
+  │  │  │   ┌──────────────────────────────┐ │  │  │
+  │  │  │   │ Domain   entities·invariants │ │  │  │
+  │  │  │   └──────────────────────────────┘ │  │  │
+  │  │  └────────────────────────────────────┘  │  │
+  │  └──────────────────────────────────────────┘  │
+  └────────────────────────────────────────────────┘
+      dependencies point inward, never outward
+```
+
+| Layer | May reference | Must never reference |
+|---|---|---|
+| **Domain** | nothing at all | EF Core, ASP.NET Core, any NuGet package |
+| **Application** | Domain, EF Core (for `DbSet`), FluentValidation | ASP.NET Core, the concrete DbContext |
+| **Infrastructure** | Application, Domain, EF Core, Aspire | ASP.NET Core routing |
+| **Api** | Application, Infrastructure | EF Core — persistence arrives via Infrastructure |
+
+This is enforced by the compiler, not by convention. Domain has zero package references, so it *cannot* reach for EF Core. Api has no EF Core reference, so it *cannot* touch a DbContext.
+
+Consequences worth knowing:
+
+- **Use cases return `Result<T>`, never HTTP types.** `Error` carries an `ErrorType` of `Validation`, `NotFound` or `Conflict`. `ResultExtensions` in the Api layer is the single place that becomes a status code, so the error policy is auditable in one file — and the same handler can be driven by a message consumer in Phase 3 without modification.
+- **CQRS without MediatR**, which is now commercially licensed: three hand-written interfaces (`ICommandHandler<T>`, `ICommandHandler<T,R>`, `IQueryHandler<T,R>`) with explicit DI registration.
+- **Persistence is reached through a port.** Application depends on `ICatalogDbContext`; Infrastructure implements it. [ADR 0004](docs/adr/0004-clean-architecture-per-service.md) explains why this rather than repositories.
+- **Mapping lives in Infrastructure.** Domain entities carry no EF attributes and are usable with no database present.
+- **Migrations are generated with Infrastructure as its own startup project**, which is what keeps EF Core out of the Api layer.
+
+Honest note on cost: for a CRUD service like Catalog these four layers are largely ceremony. The structure earns its keep in Ordering, where the saga, invariants and compensation logic live. It is applied uniformly because one consistent template across six services is worth more than optimising each one.
+
 ---
 
 ## 6. Synchronous plane (HTTP)

@@ -20,7 +20,7 @@ A .NET microservices implementation of an e-commerce checkout and order-fulfilme
 First time only — create the databases:
 
 ```bash
-dotnet ef database update --project src/Services/Catalog/Catalog.Api
+dotnet ef database update --project src/Services/Catalog/Catalog.Infrastructure --startup-project src/Services/Catalog/Catalog.Infrastructure
 ```
 
 Then:

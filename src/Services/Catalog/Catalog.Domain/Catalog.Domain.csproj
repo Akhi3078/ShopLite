@@ -1,0 +1,7 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- The innermost layer. It references nothing: no EF Core, no ASP.NET Core, no NuGet
+       packages at all. If a dependency ever needs adding here, that is a design smell
+       worth arguing about rather than resolving. -->
+
+</Project>

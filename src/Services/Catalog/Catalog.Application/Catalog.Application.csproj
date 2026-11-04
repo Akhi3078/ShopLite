@@ -1,0 +1,18 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <PackageReference Include="FluentValidation" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" />
+
+    <!-- EF Core is referenced here only for DbSet/IQueryable in ICatalogDbContext and the
+         async LINQ operators. This is the mainstream Clean Architecture compromise: the
+         alternative (repository interfaces returning materialised collections) removes the
+         reference at the cost of hand-writing a query abstraction. See ADR 0004. -->
+    <PackageReference Include="Microsoft.EntityFrameworkCore" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Catalog.Domain\Catalog.Domain.csproj" />
+  </ItemGroup>
+
+</Project>

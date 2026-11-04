@@ -1,12 +1,12 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Design;
 
-namespace Catalog.Api.Infrastructure;
+namespace Catalog.Infrastructure.Persistence;
 
 /// <summary>
 /// Design-time only. `dotnet ef` runs outside the AppHost, so no connection string is
 /// injected and <c>AddSqlServerDbContext</c> never executes. Without this, the tooling
-/// would try to boot Program.cs — including the seeder — just to read the model.
+/// would try to boot the Api project — including its seeder — just to read the model.
 /// </summary>
 /// <remarks>
 /// Set <c>ConnectionStrings__catalogdb</c> to target a different server, e.g. when
