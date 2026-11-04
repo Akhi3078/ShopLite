@@ -13,6 +13,10 @@ builder.AddSqlServerDbContext<ShopLiteIdentityDbContext>("identitydb");
 // Identity needs to validate tokens too, for its own /auth/me and /users endpoints.
 builder.AddShopLiteAuthentication();
 
+// The browser posts to /auth/login from the Angular origin, so this service needs CORS
+// just as much as Catalog does — arguably more, since it is the first call the UI makes.
+builder.AddShopLiteCors();
+
 builder.Services
     .AddIdentityCore<ApplicationUser>(options =>
     {
@@ -37,7 +41,11 @@ var app = builder.Build();
 
 app.MapDefaultEndpoints();
 
-// Order matters: authentication identifies the caller, authorization then decides.
+// CORS first: a preflight OPTIONS request carries no credentials, so it must be answered
+// before authentication gets a chance to reject it.
+app.UseShopLiteCors();
+
+// Then order matters: authentication identifies the caller, authorization then decides.
 app.UseAuthentication();
 app.UseAuthorization();
 
