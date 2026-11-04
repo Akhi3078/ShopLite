@@ -3,6 +3,7 @@ using Catalog.Application.Abstractions;
 using Catalog.Application.Common;
 using Catalog.Application.Products.Commands;
 using Catalog.Application.Products.Queries;
+using ShopLite.ServiceDefaults;
 
 namespace Catalog.Api.Endpoints;
 
@@ -28,6 +29,7 @@ public static class ProductEndpoints
 
                 return result.ToHttpResult();
             })
+            .RequireAuthorization(Policies.Authenticated)
             .WithName("GetProducts")
             .WithSummary("List products")
             .WithDescription("Returns a page of products, newest first, optionally filtered by category.");
@@ -40,6 +42,7 @@ public static class ProductEndpoints
                 var result = await handler.Handle(new GetProductByIdQuery(id), cancellationToken);
                 return result.ToHttpResult();
             })
+            .RequireAuthorization(Policies.Authenticated)
             .WithName("GetProductById")
             .WithSummary("Get a product by id");
 
@@ -55,6 +58,7 @@ public static class ProductEndpoints
                     ? Results.Created($"/products/{result.Value}", new { id = result.Value })
                     : result.ToHttpResult();
             })
+            .RequireAuthorization(Policies.ManageCatalog)
             .WithName("CreateProduct")
             .WithSummary("Create a product");
 
@@ -70,6 +74,7 @@ public static class ProductEndpoints
                 var result = await handler.Handle(command, cancellationToken);
                 return result.ToHttpResult();
             })
+            .RequireAuthorization(Policies.ManageCatalog)
             .WithName("UpdateProduct")
             .WithSummary("Update a product");
 
@@ -81,6 +86,7 @@ public static class ProductEndpoints
                 var result = await handler.Handle(new DeleteProductCommand(id), cancellationToken);
                 return result.ToHttpResult();
             })
+            .RequireAuthorization(Policies.ManageCatalog)
             .WithName("DeleteProduct")
             .WithSummary("Delete a product");
 

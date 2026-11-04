@@ -1,0 +1,27 @@
+// Bootstrap is compiled from its Sass source rather than linked as prebuilt CSS, so its
+// theme variables can be overridden here. Overrides must be passed through `with (...)`
+// on the @use, because Sass evaluates @use before anything else in the file.
+@use 'bootstrap/scss/bootstrap' with (
+  $primary: #2563eb,
+  $border-radius: 0.5rem,
+  $body-bg: #f8f9fa,
+  $enable-shadows: true
+);
+
+// Small amount of app-level styling. Everything else comes from Bootstrap utilities.
+.page {
+  max-width: 1100px;
+  margin-inline: auto;
+  padding: 1.5rem 1rem 3rem;
+}
+
+.auth-card {
+  max-width: 26rem;
+  margin: 3rem auto;
+}
+
+.role-badge {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}

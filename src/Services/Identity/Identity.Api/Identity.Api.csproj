@@ -1,0 +1,25 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <!-- Identity is a single project, not the four Clean Architecture layers the other
+       services use. ASP.NET Core Identity supplies the entities (IdentityUser,
+       IdentityRole) and the use cases (UserManager, SignInManager), so there is no
+       domain model of our own to protect and nothing for a Domain layer to hold.
+       Wrapping framework types in four projects would be ceremony with no payoff.
+       See ADR 0005. -->
+
+  <ItemGroup>
+    <PackageReference Include="Aspire.Microsoft.EntityFrameworkCore.SqlServer" />
+    <PackageReference Include="Microsoft.AspNetCore.Identity.EntityFrameworkCore" />
+    <PackageReference Include="Microsoft.AspNetCore.OpenApi" />
+    <PackageReference Include="Scalar.AspNetCore" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Design">
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+      <PrivateAssets>all</PrivateAssets>
+    </PackageReference>
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\Aspire\ShopLite.ServiceDefaults\ShopLite.ServiceDefaults.csproj" />
+  </ItemGroup>
+
+</Project>

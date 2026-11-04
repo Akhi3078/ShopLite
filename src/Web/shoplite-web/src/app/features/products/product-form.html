@@ -1,0 +1,98 @@
+<nav aria-label="breadcrumb">
+  <ol class="breadcrumb">
+    <li class="breadcrumb-item"><a routerLink="/products">Products</a></li>
+    <li class="breadcrumb-item active" aria-current="page">{{ id() ? 'Edit' : 'New' }}</li>
+  </ol>
+</nav>
+
+<h1 class="h3 mb-4">{{ id() ? 'Edit product' : 'New product' }}</h1>
+
+<div class="card shadow-sm" style="max-width: 44rem">
+  <div class="card-body p-4">
+    @if (errors().length) {
+      <div class="alert alert-danger py-2 small" role="alert">
+        <ul class="mb-0 ps-3">
+          @for (message of errors(); track message) {
+            <li>{{ message }}</li>
+          }
+        </ul>
+      </div>
+    }
+
+    @if (loading()) {
+      <div class="text-center py-4 text-secondary">
+        <span class="spinner-border spinner-border-sm me-2"></span>Loading…
+      </div>
+    } @else {
+      <form [formGroup]="form" (ngSubmit)="submit()">
+        <div class="mb-3">
+          <label class="form-label" for="name">Name</label>
+          <input
+            id="name"
+            type="text"
+            class="form-control"
+            formControlName="name"
+            [class.is-invalid]="form.controls.name.touched && form.controls.name.invalid"
+          />
+          <div class="invalid-feedback">Name is required (max 200 characters).</div>
+        </div>
+
+        <div class="mb-3">
+          <label class="form-label" for="description">Description</label>
+          <textarea
+            id="description"
+            class="form-control"
+            rows="3"
+            formControlName="description"
+            [class.is-invalid]="
+              form.controls.description.touched && form.controls.description.invalid
+            "
+          ></textarea>
+          <div class="invalid-feedback">Description is required (max 2000 characters).</div>
+        </div>
+
+        <div class="row g-3 mb-4">
+          <div class="col-sm-6">
+            <label class="form-label" for="price">Price</label>
+            <div class="input-group">
+              <span class="input-group-text">$</span>
+              <input
+                id="price"
+                type="number"
+                step="0.01"
+                min="0.01"
+                class="form-control"
+                formControlName="price"
+                [class.is-invalid]="form.controls.price.touched && form.controls.price.invalid"
+              />
+              <div class="invalid-feedback">Price must be greater than zero.</div>
+            </div>
+            <div class="form-text">At most two decimal places.</div>
+          </div>
+
+          <div class="col-sm-6">
+            <label class="form-label" for="category">Category</label>
+            <input
+              id="category"
+              type="text"
+              class="form-control"
+              formControlName="category"
+              [class.is-invalid]="form.controls.category.touched && form.controls.category.invalid"
+            />
+            <div class="invalid-feedback">Category is required.</div>
+          </div>
+        </div>
+
+        <div class="d-flex gap-2">
+          <button class="btn btn-primary" type="submit" [disabled]="busy()">
+            @if (busy()) {
+              <span class="spinner-border spinner-border-sm me-2"></span>
+            }
+            {{ id() ? 'Save changes' : 'Create product' }}
+          </button>
+          <a class="btn btn-outline-secondary" routerLink="/products">Cancel</a>
+        </div>
+      </form>
+    }
+  </div>
+</div>

@@ -1,0 +1,64 @@
+<div class="card auth-card shadow-sm">
+  <div class="card-body p-4">
+    <h1 class="h4 mb-1">Sign in</h1>
+    <p class="text-secondary small mb-4">Access the ShopLite catalog.</p>
+
+    @if (error()) {
+      <div class="alert alert-danger py-2 small" role="alert">{{ error() }}</div>
+    }
+
+    <form [formGroup]="form" (ngSubmit)="submit()">
+      <div class="mb-3">
+        <label class="form-label" for="email">Email</label>
+        <input
+          id="email"
+          type="email"
+          class="form-control"
+          formControlName="email"
+          autocomplete="username"
+          [class.is-invalid]="form.controls.email.touched && form.controls.email.invalid"
+        />
+        <div class="invalid-feedback">Enter a valid email address.</div>
+      </div>
+
+      <div class="mb-4">
+        <label class="form-label" for="password">Password</label>
+        <input
+          id="password"
+          type="password"
+          class="form-control"
+          formControlName="password"
+          autocomplete="current-password"
+          [class.is-invalid]="form.controls.password.touched && form.controls.password.invalid"
+        />
+        <div class="invalid-feedback">Password is required.</div>
+      </div>
+
+      <button class="btn btn-primary w-100" type="submit" [disabled]="busy()">
+        @if (busy()) {
+          <span class="spinner-border spinner-border-sm me-2"></span>
+        }
+        Sign in
+      </button>
+    </form>
+
+    <hr class="my-4" />
+
+    <p class="small text-secondary mb-2">Seeded accounts (password <code>Passw0rd!</code>):</p>
+    <div class="d-flex gap-2">
+      @for (account of demoAccounts; track account.email) {
+        <button
+          class="btn btn-sm btn-outline-secondary flex-fill"
+          type="button"
+          (click)="useDemo(account.email)"
+        >
+          {{ account.label }}
+        </button>
+      }
+    </div>
+
+    <p class="small text-center text-secondary mt-4 mb-0">
+      No account? <a routerLink="/register">Register</a>
+    </p>
+  </div>
+</div>

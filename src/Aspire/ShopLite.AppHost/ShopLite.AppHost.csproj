@@ -3,6 +3,10 @@
   <!-- TargetFramework, Nullable and ImplicitUsings come from Directory.Build.props. -->
   <ItemGroup>
     <ProjectReference Include="..\..\Services\Catalog\Catalog.Api\Catalog.Api.csproj" />
+    <ProjectReference Include="..\..\Services\Identity\Identity.Api\Identity.Api.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="Aspire.Hosting.NodeJs" />
   </ItemGroup>
   <PropertyGroup>
     <OutputType>Exe</OutputType>
