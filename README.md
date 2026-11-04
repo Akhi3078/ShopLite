@@ -29,9 +29,18 @@ Then:
 aspire run
 ```
 
-This starts every service and opens the Aspire dashboard. Catalog's API reference is at
-`https://localhost:7232/scalar/v1`, and `src/Services/Catalog/Catalog.Api/Catalog.Api.http`
-holds ready-made requests.
+This starts every service and opens the Aspire dashboard.
+
+| What | Where |
+|---|---|
+| Aspire dashboard | https://localhost:17185 |
+| Catalog API reference | https://localhost:7232/scalar/v1 |
+| Ready-made requests | [Catalog.Api.http](src/Services/Catalog/Catalog.Api/Catalog.Api.http) |
+
+The dashboard needs no login token, because `ASPIRE_DASHBOARD_UNSECURED_ALLOW_ANONYMOUS`
+is set in the AppHost launch profile. That is a local-development convenience only — the
+dashboard shows logs, traces, environment variables and connection strings, so the token
+must come back before it is reachable from anywhere but this machine.
 
 Migrations are applied explicitly, never on startup — see
 [ADR 0003](docs/adr/0003-catalog-service-shape.md).
