@@ -11,7 +11,9 @@ ShopLite is a microservices implementation of an e-commerce **checkout and order
 
 That slice is the point. It crosses five service boundaries, has to remain correct when any participant fails midway, and therefore exercises the problems that distinguish distributed systems from a monolith with more projects in it: eventual consistency, the dual-write problem, idempotent delivery, and distributed rollback via compensation.
 
-Out of scope by design: product search, reviews, recommendations, shipping carriers, returns, and any user interface.
+A role-based Angular UI sits in front of it, so the access-control rules are visible rather than described.
+
+Out of scope by design: product search, reviews, recommendations, shipping carriers and returns.
 
 ---
 
@@ -54,15 +56,15 @@ The broker is infrastructure; the library is a dependency of the application. Th
 ```
                        ┌──────────────────┐
                        │     Customer     │
-                       │ (.http / Scalar) │
+                       │  (Angular SPA)   │
                        └────────┬─────────┘
                                 │ HTTPS
-                       ┌────────▼─────────┐        ┌──────────────┐
-                       │  ShopLite.Gateway │───────►│   Keycloak   │
-                       │      (YARP)       │  OIDC  │  (identity)  │
-                       └────────┬─────────┘        └──────────────┘
-                                │
-                    ┌───────────┴────────────┐
+                       ┌────────▼──────────┐       ┌──────────────┐
+                       │  ShopLite.Gateway │──────►│ Identity.Api │
+                       │      (YARP)       │  JWT  │ users, roles │
+                       └────────┬──────────┘       └──────┬───────┘
+                                │                         │
+                    ┌───────────┴────────────┐    ShopLite_Identity
                     │     ShopLite services  │
                     │  (see §5 and §6, §7)   │
                     └────────────────────────┘
@@ -77,6 +79,7 @@ The gateway is the only publicly reachable component. No service is exposed dire
 | Service | Responsibility | Data store | Public API |
 |---|---|---|---|
 | **ShopLite.Gateway** | Single entry point: routing, JWT validation, rate limiting | none | yes |
+| **Identity.Api** | Users, roles, JWT issuing | `ShopLite_Identity` | via gateway |
 | **Catalog.Api** | Product information and pricing | `ShopLite_Catalog` | via gateway |
 | **Basket.Api** | Per-customer basket; initiates checkout | Redis | via gateway |
 | **Ordering.Api** | Order lifecycle; owns the fulfilment saga | `ShopLite_Ordering` | via gateway |
@@ -229,6 +232,7 @@ Events are versioned additively: new optional fields only. Breaking a contract r
 | Database | Owner |
 |---|---|
 | `ShopLite_Catalog` | Catalog.Api |
+| `ShopLite_Identity` | Identity.Api |
 | `ShopLite_Ordering` | Ordering.Api |
 | `ShopLite_Inventory` | Inventory.Api |
 | `ShopLite_Payment` | Payment.Api |
@@ -317,7 +321,7 @@ A reservation that is never confirmed must not be held forever. The saga schedul
 
 | Concern | Approach |
 |---|---|
-| **Identity** | Keycloak (OIDC). Gateway validates JWTs; services re-validate rather than trusting the gateway. Identity propagates across messages as a contract field, not an ambient context. |
+| **Identity** | `Identity.Api` using ASP.NET Core Identity, issuing JWTs with roles as claims. Services validate the signature themselves and never call Identity per request. Identity propagates across messages as a contract field, not an ambient context. Validation and the role policies live once in `ShopLite.ServiceDefaults`. See [ADR 0005](docs/adr/0005-identity-and-angular-ui.md), and §16 for the Keycloak migration path. |
 | **Observability** | OpenTelemetry traces, metrics and logs over OTLP. A single trace spans gateway → service → broker → consumer. Aspire dashboard locally, Application Insights in Azure. |
 | **Correlation** | Correlation IDs survive queue hops via message headers. |
 | **Resilience** | `Microsoft.Extensions.Http.Resilience` for HTTP; Wolverine error policies and dead-letter queues for messaging. |
@@ -342,7 +346,8 @@ var sb  = builder.AddAzureServiceBus("messaging").RunAsEmulator();
 | Relational data | local SQL Server 2022 instance | Azure SQL Database |
 | Messaging | Service Bus emulator container | Azure Service Bus, Standard |
 | Cache | Redis container | Redis container app |
-| Identity | Keycloak container | Keycloak container app |
+| Identity | `Identity.Api` + local SQL Server | `Identity.Api` on Container Apps + Azure SQL |
+| Web UI | Angular dev server (Vite) | static files on Container Apps |
 | Images | local Docker | Azure Container Registry |
 | Secrets | user secrets | Key Vault + Managed Identity |
 | Telemetry | Aspire dashboard | Application Insights |
@@ -364,8 +369,10 @@ Phases 1–6 run entirely locally; Azure deployment is Phase 7. Development does
 | No MediatR / AutoMapper | Both moved to commercial licensing | Hand-written mapping and dispatch |
 | Database per service on a shared instance | Preserves the rule at realistic cost | Isolation is enforced by convention locally, by Azure SQL in deployment |
 | Redis for Basket | Basket is ephemeral key-value data with a natural TTL | A second storage technology to operate |
-| Keycloak over Entra External ID | Runs locally, free, standard OIDC | Not an Azure-native identity solution |
-| No UI | Adds surface area without teaching distribution | Demonstrated via Scalar and `.http` files |
+| ASP.NET Core Identity over Keycloak | A schema we own and can inspect; no extra container; shows how a JWT is minted and validated | No SSO, social login, MFA or password reset without building them (§16) |
+| Roles as JWT claims, not a lookup | No network hop per request; Catalog survives Identity being down | A role change applies only at next sign-in |
+| Symmetric JWT signing | One shared key, no key distribution to set up | Every service holds a key that can also mint tokens — wrong for production |
+| Angular + Bootstrap UI | Makes role-based access visible instead of theoretical | Frontend surface area unrelated to distribution |
 
 ---
 
@@ -397,3 +404,52 @@ Phases 1–6 run entirely locally; Azure deployment is Phase 7. Development does
 For a greenfield product with an unproven domain and a small team, a **modular monolith** with clean internal boundaries would be the correct starting point. It delivers faster, is far cheaper to operate, and allows boundaries to be moved once the domain is understood — which is precisely when extracting services becomes cheap and low-risk.
 
 ShopLite is distributed deliberately, to surface the costs and failure modes of distribution. Recognising when those costs are not worth paying is part of the competence this project is meant to demonstrate.
+
+---
+
+## 16. Migrating to Keycloak later
+
+Keycloak was the original choice, replaced by `Identity.Api` in [ADR 0005](docs/adr/0005-identity-and-angular-ui.md). The swap remains available, and the current design was kept deliberately compatible with it.
+
+### Why it is a contained change
+
+JWT validation and the role policies live in **one file** — `ShopLite.ServiceDefaults/AuthenticationExtensions.cs`. Endpoints reference a policy name, never a role list. Services already validate the token signature themselves rather than calling the issuer. Keycloak issues standard OIDC JWTs, so from a service's point of view only *who signed the token* changes.
+
+### What does not change at all
+
+- `.RequireAuthorization(Policies.ManageCatalog)` on every endpoint
+- The `Microsoft.AspNetCore.Authentication.JwtBearer` package and middleware order
+- The Angular route-guard and interceptor structure
+- Services never calling the identity provider per request
+
+### What does change
+
+| Area | Now | With Keycloak |
+|---|---|---|
+| Token issuer | `Identity.Api` / `TokenService` | Keycloak; our token code is deleted |
+| Signing | symmetric HMAC, shared secret | asymmetric RS256, public keys fetched from JWKS |
+| Validation config | `IssuerSigningKey` with a secret | `options.Authority` — keys are discovered automatically |
+| Login flow | SPA posts email + password to our API | SPA **redirects** to Keycloak's hosted login page (Authorization Code + PKCE) |
+| Login UI | our Angular form | Keycloak's page, themeable |
+| User admin | our Users screen | Keycloak admin console, or its Admin REST API |
+| Sessions | one access token, no refresh | access + refresh tokens, silent renewal |
+| Hosting | a .NET project | a container (`AddKeycloak` in `Aspire.Hosting.Keycloak`) |
+
+Note that validation gets *simpler*: `Authority` replaces manual key handling, and no service holds a token-minting secret any more.
+
+### The gotchas, in the order they will bite
+
+1. **Role claims are in the wrong place.** Keycloak emits roles nested under `realm_access.roles`, not as the flat `ClaimTypes.Role` entries that `RequireRole` reads. Authorization silently denies everything until a claims transformation flattens them. This is the single most common sticking point; budget an evening for it alone.
+2. **The audience claim.** Keycloak's default `aud` is `account`, not your API. Validation fails until a dedicated audience mapper or client scope is configured, or audience validation is explicitly relaxed.
+3. **The login flow is a redirect, not a form post.** This is the real work on the frontend. The SPA leaves the page, comes back with a code, and exchanges it for tokens. It needs an OIDC library (`angular-oauth2-oidc`), and our login and register components are deleted rather than adapted.
+4. **Realm configuration must be code.** Clicking through the admin console produces a setup nobody can reproduce. Export the realm to JSON and import it on container start, or the environment is unrepeatable.
+5. **Realm roles vs client roles vs groups.** Keycloak offers three overlapping models. Pick one — realm roles map most directly onto what exists today — and write down why.
+6. **Issuer URL must match exactly.** The `iss` in the token and the configured authority must agree character for character, including scheme, port and trailing path. Container-internal versus browser-visible hostnames differ, and this breaks far more often than it should.
+7. **Existing users.** The three seeded accounts are trivial to recreate; real users need importing through the Admin API.
+8. **Refresh tokens change the frontend's shape.** Short access tokens plus silent renewal replace "one token in localStorage until it expires".
+
+### What to avoid doing now, so the door stays open
+
+- Don't scatter role string literals through endpoints or templates — keep using `Roles` and `Policies`.
+- Don't let components read token internals; everything goes through `AuthService`.
+- Don't add anything to `ShopLite_Identity` beyond users and roles. Profile data that other services need belongs to those services, or the identity provider becomes impossible to replace.

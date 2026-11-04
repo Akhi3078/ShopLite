@@ -108,7 +108,9 @@ This is where microservices actually start. Do not rush it.
 
 ### Phase 5 — Cross-cutting concerns (~1.5 weeks)
 
-- [ ] **Keycloak** in a container as identity provider; JWT bearer validation
+- [x] **Identity.Api** (ASP.NET Core Identity) as identity provider; JWT bearer validation — done early, out of phase order
+- [x] Role-based authorization: Admin / Manager / Customer, enforced by policy, not by inline role lists
+- [ ] Optional later: swap to Keycloak — see [ARCHITECTURE.md §16](ARCHITECTURE.md) for the migration path and its gotchas
 - [ ] Decide what the gateway validates vs what each service validates
 - [ ] Propagate identity across async messages — a genuinely hard problem, worth sitting with
 - [ ] **OpenTelemetry** — one trace spanning gateway → service → Service Bus → consumer
@@ -169,7 +171,8 @@ An e-commerce order pipeline. A well-worn example, and that is exactly why it su
 | **Payment** | SQL Server | Deliberate failures, retries, idempotency | 4 |
 | **Notification** | none | A pure event consumer, no API at all | 5 |
 | **Gateway** (YARP) | — | Single entry point, auth boundary | 2 |
-| **Keycloak** | container | Identity, token propagation | 5 |
+| **Identity** | SQL Server | Users, roles, JWT issuing, token propagation | done |
+| **Web UI** (Angular) | — | Makes role-based access visible | done |
 
 ### What kind of project this is, concretely
 
@@ -180,7 +183,7 @@ A **single C# solution of ~13 .NET projects**, orchestrated locally by Aspire. N
 | Catalog.Api, Basket.Api, Ordering.Api, Inventory.Api, Payment.Api | `dotnet new webapi` | ASP.NET Core Web APIs, Minimal API style — no controllers |
 | Notification.Worker | `dotnet new worker` | A `BackgroundService` with **no HTTP endpoint at all** — pure message consumer |
 | ShopLite.Gateway | `dotnet new web` + YARP | Empty ASP.NET Core host, config-driven reverse proxy |
-| ShopLite.AppHost | `dotnet new aspire-apphost` | Orchestrator — declares every service + SQL Server, Redis, Service Bus, Keycloak |
+| ShopLite.AppHost | `dotnet new aspire-apphost` | Orchestrator — declares every service + SQL Server, Redis, Service Bus, and the Angular dev server |
 | ShopLite.ServiceDefaults | `dotnet new aspire-servicedefaults` | Class library every service references |
 | Contracts, Shared, Ordering.Domain | `dotnet new classlib` | Plain class libraries |
 | Catalog.Tests, Ordering.Tests, IntegrationTests | `dotnet new xunit` | Test projects |
@@ -322,7 +325,8 @@ Basket uses Redis; Notification.Worker holds no state. The `ShopLite_` prefix ma
 | Cloud telemetry | Application Insights | same OpenTelemetry code as local |
 | Cache / Basket | Redis | |
 | Gateway | YARP | |
-| Identity | Keycloak | free, container, realistic OIDC |
+| Identity | **ASP.NET Core Identity** in `Identity.Api` | a schema you own, no extra container; Keycloak remains an option (ARCHITECTURE.md §16) |
+| Frontend | Angular 22 + Bootstrap 5 | Angular CLI already builds on Vite |
 | Resilience | `Microsoft.Extensions.Http.Resilience` | Polly v8 |
 | Observability | OpenTelemetry → Aspire dashboard | Grafana stack later |
 | Validation | FluentValidation | |
@@ -345,7 +349,8 @@ Basket uses Redis; Notification.Worker holds no state. The `ShopLite_` prefix ma
 - [ ] 5. Service Bus emulator into the AppHost; Basket publishes `BasketCheckedOut`; Ordering consumes it
 - [ ] 6. Ordering's outbox, hand-rolled first
 - [ ] 7. Inventory + Payment, then the saga coordinating all four with compensation
-- [ ] 8. Keycloak, auth at the gateway, token propagation
+- [x] 8. Identity service, role-based authorization, Angular UI (built ahead of order)
+- [ ] 8b. Move auth enforcement to the gateway once it exists, and drop per-service CORS
 - [ ] 9. Testcontainers integration tests
 - [ ] 10. Dockerfiles, compose, CI
 
@@ -379,7 +384,7 @@ No `#if DEBUG`, no parallel compose file, no second set of connection strings. T
 | Relational data | local SQL Server 2022 instance | Azure SQL Database (free offer) |
 | Messaging | Service Bus emulator container | Azure Service Bus, Standard tier |
 | Cache / Basket | Redis container | Redis as a container app |
-| Identity | Keycloak container | Keycloak as a container app |
+| Identity | `Identity.Api` + local SQL Server | `Identity.Api` + Azure SQL |
 | Compute | local processes | Azure Container Apps |
 | Images | local Docker | Azure Container Registry (Basic) |
 | Secrets | `dotnet user-secrets` | Key Vault + **Managed Identity** |
