@@ -17,11 +17,24 @@ A .NET microservices implementation of an e-commerce checkout and order-fulfilme
 
 ## Running
 
+First time only — create the databases:
+
+```bash
+dotnet ef database update --project src/Services/Catalog/Catalog.Api
+```
+
+Then:
+
 ```bash
 aspire run
 ```
 
-This starts every service and its dependencies, and opens the Aspire dashboard.
+This starts every service and opens the Aspire dashboard. Catalog's API reference is at
+`https://localhost:7232/scalar/v1`, and `src/Services/Catalog/Catalog.Api/Catalog.Api.http`
+holds ready-made requests.
+
+Migrations are applied explicitly, never on startup — see
+[ADR 0003](docs/adr/0003-catalog-service-shape.md).
 
 ## Repository layout
 

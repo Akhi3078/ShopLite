@@ -27,11 +27,12 @@ Current machine state (checked 2026-11-04):
 | Azure CLI (`az`) / `azd` | **not installed** — needed at Phase 7 only |
 | Existing databases on default instance | **36** — unrelated work, so prefix everything `ShopLite_` |
 
-- [ ] Install the **.NET 10 SDK** (LTS, supported to 2028-11-14). Minimum required by Aspire 13.x.
-- [ ] `dotnet tool install -g aspire.cli`
-- [ ] Confirm Docker Desktop is actually running (Aspire and Testcontainers both need the live daemon)
-- [ ] Create `global.json` pinning `10.0.x` with `rollForward: latestFeature`, so the RC is never picked up by accident
-- [ ] `git init` in this folder
+- [x] Install the **.NET 10 SDK** — installed 10.0.403 (LTS, supported to 2028-11-14)
+- [x] `dotnet tool install -g aspire.cli` — Aspire CLI 13.6.4
+- [x] `dotnet tool update -g dotnet-ef` — EF tools must match the runtime major; 9.0.6 was upgraded to 10.0.14
+- [ ] Confirm Docker Desktop is actually running (not needed until Phase 2)
+- [x] Create `global.json` pinning the SDK, so the .NET 11 RC is never picked up by accident
+- [x] `git init` in this folder
 
 Needed later, at Phase 7 (not now):
 
@@ -58,14 +59,16 @@ Estimates assume ~6–8 hours per week.
 
 Not microservices yet. Goal: a single service worth copying five more times.
 
-- [ ] Minimal APIs organised as **vertical slices** (feature folders), not Controllers/Services/Repositories layers
-- [ ] EF Core against the local SQL Server instance + migrations (see "Local SQL Server setup" below)
-- [ ] Built-in OpenAPI (`Microsoft.AspNetCore.OpenApi`) + Scalar UI — Swashbuckle is no longer the default
-- [ ] Health checks — understand **liveness vs readiness** as two different endpoints with different meanings
-- [ ] A `ServiceDefaults` project: the one extension method every service calls for telemetry, health, resilience, discovery
-- [ ] An Aspire **AppHost** that starts the service + SQL Server together via `aspire run`
+- [x] Minimal APIs organised as **vertical slices** (feature folders), not Controllers/Services/Repositories layers
+- [x] EF Core against the local SQL Server instance + migrations (see "Local SQL Server setup" below)
+- [x] Built-in OpenAPI (`Microsoft.AspNetCore.OpenApi`) + Scalar UI — Swashbuckle is no longer the default
+- [x] Health checks — understand **liveness vs readiness** as two different endpoints with different meanings
+- [x] A `ServiceDefaults` project: the one extension method every service calls for telemetry, health, resilience, discovery
+- [x] An Aspire **AppHost** that starts the service via `aspire run` (SQL Server is referenced as an existing connection string, not managed by Aspire — see ADR 0003)
 
-**Checkpoint:** one command starts everything; traces appear in the Aspire dashboard.
+**Checkpoint:** reached 2026-11-04. One command starts everything; dashboard at `https://localhost:17185`, Catalog at `https://localhost:7232`.
+
+Worth reading before moving on: `src/Aspire/ShopLite.ServiceDefaults/Extensions.cs`. It is the whole cross-cutting story in ~130 lines, and `MapDefaultEndpoints` is where the liveness/readiness distinction actually lives — `/alive` filters to checks tagged `"live"`, `/health` requires every check to pass.
 
 ### Phase 2 — Two services and synchronous coupling (~1 week)
 
@@ -330,8 +333,8 @@ Basket uses Redis; Notification.Worker holds no state. The `ShopLite_` prefix ma
 
 ### Build order
 
-- [ ] 1. `global.json`, solution, Aspire AppHost + ServiceDefaults, `git init`, first commit
-- [ ] 2. Catalog.Api end to end — SQL Server, migrations, CRUD, OpenAPI, health checks, visible in the dashboard
+- [x] 1. `global.json`, solution, Aspire AppHost + ServiceDefaults, `git init`, first commit
+- [x] 2. Catalog.Api end to end — SQL Server, migrations, CRUD, OpenAPI, health checks, visible in the dashboard
 - [ ] 3. Gateway in front of Catalog
 - [ ] 4. Basket.Api on Redis; Basket calls Catalog synchronously to price items → add resilience, then break it on purpose
 - [ ] 5. Service Bus emulator into the AppHost; Basket publishes `BasketCheckedOut`; Ordering consumes it

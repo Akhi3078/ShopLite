@@ -1,6 +1,9 @@
 <Project Sdk="Aspire.AppHost.Sdk/13.6.4">
 
   <!-- TargetFramework, Nullable and ImplicitUsings come from Directory.Build.props. -->
+  <ItemGroup>
+    <ProjectReference Include="..\..\Services\Catalog\Catalog.Api\Catalog.Api.csproj" />
+  </ItemGroup>
   <PropertyGroup>
     <OutputType>Exe</OutputType>
     <AspireUseCliBundle>true</AspireUseCliBundle>

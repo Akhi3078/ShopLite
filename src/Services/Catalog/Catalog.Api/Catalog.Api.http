@@ -1,0 +1,70 @@
+@catalog = https://localhost:7232
+
+### Liveness — is the process responsive?
+GET {{catalog}}/alive
+
+### Readiness — responsive AND can reach SQL Server
+GET {{catalog}}/health
+
+### OpenAPI document
+GET {{catalog}}/openapi/v1.json
+
+### List products (paged)
+GET {{catalog}}/products?page=1&pageSize=20
+
+### List products filtered by category
+GET {{catalog}}/products?category=Furniture
+
+### Create a product
+# @name createProduct
+POST {{catalog}}/products
+Content-Type: application/json
+
+{
+  "name": "USB-C Dock",
+  "description": "11-port dock with 100W power passthrough.",
+  "price": 189.95,
+  "category": "Peripherals"
+}
+
+### Get the product just created
+GET {{catalog}}/products/{{createProduct.response.body.id}}
+
+### Update it
+PUT {{catalog}}/products/{{createProduct.response.body.id}}
+Content-Type: application/json
+
+{
+  "name": "USB-C Dock Pro",
+  "description": "13-port dock with 140W power passthrough.",
+  "price": 229.00,
+  "category": "Peripherals"
+}
+
+### Delete it
+DELETE {{catalog}}/products/{{createProduct.response.body.id}}
+
+### Validation failure — expect 400 with an RFC 7807 problem document
+POST {{catalog}}/products
+Content-Type: application/json
+
+{
+  "name": "",
+  "description": "",
+  "price": -5,
+  "category": ""
+}
+
+### Price with too many decimal places — expect 400
+POST {{catalog}}/products
+Content-Type: application/json
+
+{
+  "name": "Mouse Pad",
+  "description": "Cloth surface, stitched edge.",
+  "price": 12.999,
+  "category": "Peripherals"
+}
+
+### Unknown id — expect 404
+GET {{catalog}}/products/00000000-0000-0000-0000-000000000000
