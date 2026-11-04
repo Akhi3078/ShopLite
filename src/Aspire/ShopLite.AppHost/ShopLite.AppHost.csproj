@@ -1,0 +1,10 @@
+<Project Sdk="Aspire.AppHost.Sdk/13.6.4">
+
+  <!-- TargetFramework, Nullable and ImplicitUsings come from Directory.Build.props. -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <AspireUseCliBundle>true</AspireUseCliBundle>
+    <UserSecretsId>193d6efd-5be9-4cf0-aee0-018667c2c95b</UserSecretsId>
+  </PropertyGroup>
+
+</Project>

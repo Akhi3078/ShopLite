@@ -1,0 +1,7 @@
+<Solution>
+  <Folder Name="/src/" />
+  <Folder Name="/src/Aspire/">
+    <Project Path="src/Aspire/ShopLite.AppHost/ShopLite.AppHost.csproj" />
+    <Project Path="src/Aspire/ShopLite.ServiceDefaults/ShopLite.ServiceDefaults.csproj" />
+  </Folder>
+</Solution>

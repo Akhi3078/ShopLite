@@ -1,0 +1,16 @@
+<Project>
+
+  <!-- Applies to every project in the repo. See docs/adr/0002-foundation-choices.md -->
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <LangVersion>latest</LangVersion>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+
+    <!-- Deliberately off: warnings-as-errors fights exploratory work in a learning repo.
+         Revisit once the service shape has settled. -->
+    <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
+    <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
+  </PropertyGroup>
+
+</Project>
