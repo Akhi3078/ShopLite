@@ -36,6 +36,21 @@ export const routes: Routes = [
     loadComponent: () => import('./features/products/product-form').then((m) => m.ProductForm),
   },
   {
+    // Any signed-in user has a basket — there is no role gate, because the basket is
+    // always the caller's own. The server works this out from the token, so the URL
+    // carries no customer id and there is nothing here to authorise beyond "signed in".
+    path: 'basket',
+    canActivate: [authGuard],
+    loadComponent: () => import('./features/basket/basket').then((m) => m.BasketPage),
+  },
+  {
+    // Any signed-in user sees their own orders; an Admin sees everyone's. The difference
+    // is decided by the API from the token, so there is no role gate on the route.
+    path: 'orders',
+    canActivate: [authGuard],
+    loadComponent: () => import('./features/orders/order-list').then((m) => m.OrderList),
+  },
+  {
     path: 'users',
     canActivate: [authGuard, roleGuard(Role.Admin)],
     loadComponent: () => import('./features/users/user-list').then((m) => m.UserList),

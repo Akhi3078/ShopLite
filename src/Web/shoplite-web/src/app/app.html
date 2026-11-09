@@ -23,6 +23,30 @@
             <a class="nav-link" routerLink="/products" routerLinkActive="active">Products</a>
           </li>
 
+          <!-- No role gate: every signed-in user has a basket. -->
+          <li class="nav-item">
+            <a class="nav-link" routerLink="/basket" routerLinkActive="active">
+              <i class="bi bi-basket me-1"></i>Basket
+              @if (basket.itemCount() > 0) {
+                <span class="badge bg-light text-primary ms-1">{{ basket.itemCount() }}</span>
+              }
+              <!-- A cached price anywhere in the basket is worth surfacing outside the
+                   basket page, since the customer may never open it before checkout. -->
+              @if (basket.hasCachedPrices()) {
+                <i
+                  class="bi bi-clock-history ms-1 text-warning"
+                  title="Some prices in your basket came from a cached copy."
+                ></i>
+              }
+            </a>
+          </li>
+
+          <li class="nav-item">
+            <a class="nav-link" routerLink="/orders" routerLinkActive="active">
+              <i class="bi bi-receipt me-1"></i>Orders
+            </a>
+          </li>
+
           <!-- Role-gated navigation. The route is guarded too; hiding the link just
                avoids offering something that would be refused. -->
           @if (isAdmin()) {

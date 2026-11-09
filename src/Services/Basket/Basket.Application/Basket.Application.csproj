@@ -1,0 +1,22 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Note what is absent: EF Core. Catalog.Application references it because its port
+       exposes DbSet and IQueryable (the compromise in ADR 0004). Basket's store is a
+       key-value document store reached through IBasketRepository, which deals in whole
+       aggregates, so this layer has no persistence dependency at all. That is the shape
+       Clean Architecture is usually drawn with, and it happened here as a side effect of
+       the store rather than by trying harder. -->
+
+  <ItemGroup>
+    <PackageReference Include="FluentValidation" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Basket.Domain\Basket.Domain.csproj" />
+
+    <!-- Only so a use case can build the event it publishes. Domain stays unaware. -->
+    <ProjectReference Include="..\..\..\Shared\ShopLite.Contracts\ShopLite.Contracts.csproj" />
+  </ItemGroup>
+
+</Project>

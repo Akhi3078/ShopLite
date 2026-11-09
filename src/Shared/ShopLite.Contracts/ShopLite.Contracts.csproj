@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- The ONLY project shared between services, and it must stay that way.
+       Message records and nothing else: no domain logic, no EF Core types, no behaviour,
+       no base classes with methods on them.
+
+       The reason is not tidiness. A shared library containing behaviour has to be
+       versioned and released in lockstep by everyone who references it, which quietly
+       turns a set of independently deployable services back into one deployable. A
+       library of immutable records describing messages does not create that pressure,
+       because adding an optional field to a record breaks nobody.
+
+       Deliberately no package references. If one is ever needed here, that is a signal
+       that something has crept in which does not belong. -->
+
+</Project>

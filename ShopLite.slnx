@@ -4,7 +4,16 @@
     <Project Path="src/Aspire/ShopLite.AppHost/ShopLite.AppHost.csproj" />
     <Project Path="src/Aspire/ShopLite.ServiceDefaults/ShopLite.ServiceDefaults.csproj" />
   </Folder>
+  <Folder Name="/src/Gateway/">
+    <Project Path="src/Gateway/ShopLite.Gateway/ShopLite.Gateway.csproj" />
+  </Folder>
   <Folder Name="/src/Services/" />
+  <Folder Name="/src/Services/Basket/">
+    <Project Path="src/Services/Basket/Basket.Api/Basket.Api.csproj" />
+    <Project Path="src/Services/Basket/Basket.Application/Basket.Application.csproj" />
+    <Project Path="src/Services/Basket/Basket.Domain/Basket.Domain.csproj" />
+    <Project Path="src/Services/Basket/Basket.Infrastructure/Basket.Infrastructure.csproj" />
+  </Folder>
   <Folder Name="/src/Services/Catalog/">
     <Project Path="src/Services/Catalog/Catalog.Api/Catalog.Api.csproj" />
     <Project Path="src/Services/Catalog/Catalog.Application/Catalog.Application.csproj" />
@@ -13,5 +22,14 @@
   </Folder>
   <Folder Name="/src/Services/Identity/">
     <Project Path="src/Services/Identity/Identity.Api/Identity.Api.csproj" />
+  </Folder>
+  <Folder Name="/src/Services/Ordering/">
+    <Project Path="src/Services/Ordering/Ordering.Api/Ordering.Api.csproj" />
+    <Project Path="src/Services/Ordering/Ordering.Application/Ordering.Application.csproj" />
+    <Project Path="src/Services/Ordering/Ordering.Domain/Ordering.Domain.csproj" />
+    <Project Path="src/Services/Ordering/Ordering.Infrastructure/Ordering.Infrastructure.csproj" />
+  </Folder>
+  <Folder Name="/src/Shared/">
+    <Project Path="src/Shared/ShopLite.Contracts/ShopLite.Contracts.csproj" />
   </Folder>
 </Solution>

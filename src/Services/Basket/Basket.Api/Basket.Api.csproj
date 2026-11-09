@@ -1,0 +1,21 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <!-- The outermost layer: HTTP, OpenAPI, and composition. No EF Core reference, exactly
+       as in Catalog.Api — persistence arrives via Basket.Infrastructure. It is also the
+       only project here that may read an HttpContext, which is why ICallerContext is
+       implemented in this project and nowhere deeper. -->
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.OpenApi" />
+    <PackageReference Include="Scalar.AspNetCore" />
+    <PackageReference Include="WolverineFx.AzureServiceBus" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\Aspire\ShopLite.ServiceDefaults\ShopLite.ServiceDefaults.csproj" />
+    <ProjectReference Include="..\..\..\Shared\ShopLite.Contracts\ShopLite.Contracts.csproj" />
+    <ProjectReference Include="..\Basket.Application\Basket.Application.csproj" />
+    <ProjectReference Include="..\Basket.Infrastructure\Basket.Infrastructure.csproj" />
+  </ItemGroup>
+
+</Project>

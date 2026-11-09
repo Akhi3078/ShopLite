@@ -1,0 +1,20 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" />
+
+    <!-- Same compromise as Catalog: EF Core is here for DbSet/IQueryable on the port and
+         the async LINQ operators. See ADR 0004. -->
+    <PackageReference Include="Microsoft.EntityFrameworkCore" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Ordering.Domain\Ordering.Domain.csproj" />
+
+    <!-- Contracts is referenced here, not in Domain, and only so a use case can accept a
+         message as its input shape. The translation from message to command still happens
+         at the edge; this reference exists so that edge has a type to translate from. -->
+    <ProjectReference Include="..\..\..\Shared\ShopLite.Contracts\ShopLite.Contracts.csproj" />
+  </ItemGroup>
+
+</Project>

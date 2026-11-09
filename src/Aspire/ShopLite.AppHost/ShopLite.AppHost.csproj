@@ -2,11 +2,17 @@
 
   <!-- TargetFramework, Nullable and ImplicitUsings come from Directory.Build.props. -->
   <ItemGroup>
+    <ProjectReference Include="..\..\Services\Basket\Basket.Api\Basket.Api.csproj" />
     <ProjectReference Include="..\..\Services\Catalog\Catalog.Api\Catalog.Api.csproj" />
+    <ProjectReference Include="..\..\Services\Ordering\Ordering.Api\Ordering.Api.csproj" />
     <ProjectReference Include="..\..\Services\Identity\Identity.Api\Identity.Api.csproj" />
+    <ProjectReference Include="..\..\Gateway\ShopLite.Gateway\ShopLite.Gateway.csproj" />
   </ItemGroup>
   <ItemGroup>
+    <PackageReference Include="Aspire.Hosting.Azure.ServiceBus" />
     <PackageReference Include="Aspire.Hosting.NodeJs" />
+    <PackageReference Include="Aspire.Hosting.RabbitMQ" />
+    <PackageReference Include="Aspire.Hosting.Redis" />
   </ItemGroup>
   <PropertyGroup>
     <OutputType>Exe</OutputType>

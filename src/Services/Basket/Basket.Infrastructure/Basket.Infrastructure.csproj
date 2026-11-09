@@ -1,0 +1,23 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <!-- StackExchange.Redis with Aspire's wiring: connection string from configuration,
+         plus health checks and telemetry. No EF Core and no migrations here — Redis has
+         no schema to version, which removes a step and also removes a safety net. -->
+    <PackageReference Include="Aspire.StackExchange.Redis" />
+
+    <PackageReference Include="Microsoft.Extensions.Hosting.Abstractions" />
+
+    <!-- Polly v8 behind the Microsoft.Extensions wrapper: timeout, retry and circuit
+         breaker for the one outbound HTTP dependency this service has. -->
+    <PackageReference Include="Microsoft.Extensions.Http.Resilience" />
+
+    <!-- The outbox publisher needs IMessageBus to publish what it drains. -->
+    <PackageReference Include="WolverineFx.AzureServiceBus" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Basket.Application\Basket.Application.csproj" />
+  </ItemGroup>
+
+</Project>

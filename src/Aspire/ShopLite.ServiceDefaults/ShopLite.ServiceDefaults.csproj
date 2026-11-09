@@ -17,6 +17,21 @@
     <PackageReference Include="OpenTelemetry.Instrumentation.AspNetCore" />
     <PackageReference Include="OpenTelemetry.Instrumentation.Http" />
     <PackageReference Include="OpenTelemetry.Instrumentation.Runtime" />
+
+    <!-- Transport and failure policy only. Handlers and message types never live here. -->
+    <PackageReference Include="WolverineFx.AzureServiceBus" />
+    <PackageReference Include="WolverineFx.RabbitMQ" />
+
+    <!-- Wolverine 6 moved its runtime compiler out of the core package: without this,
+         every service starts and then dies with "no IAssemblyGenerator (Roslyn) is
+         registered". Referencing it auto-registers the compiler.
+
+         The production-grade alternative is to pre-generate the handler code at build
+         time (Wolverine's "codegen write" command plus TypeLoadMode.Static), which
+         removes Roslyn from the runtime and speeds up startup. Deferred: it adds a build
+         step to every service, and nothing here is startup-time sensitive yet.
+         See ADR 0008. -->
+    <PackageReference Include="WolverineFx.RuntimeCompilation" />
   </ItemGroup>
 
 </Project>

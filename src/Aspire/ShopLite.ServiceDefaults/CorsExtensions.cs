@@ -6,12 +6,11 @@ using Microsoft.Extensions.Hosting;
 namespace ShopLite.ServiceDefaults;
 
 /// <summary>
-/// Lets the Angular dev server call these APIs from its own origin.
+/// Allows the Angular dev server to call the APIs and gateway from its own origin.
 /// </summary>
 /// <remarks>
-/// Needed only because the browser talks to each API directly in development. Once the
-/// YARP gateway lands in Phase 2 the UI will have a single same-origin entry point and
-/// this can go away — which is one of the less obvious reasons gateways exist.
+/// The gateway is the browser-facing API entry point. Keeping this policy on the APIs
+/// also supports direct local API testing.
 /// </remarks>
 public static class CorsExtensions
 {

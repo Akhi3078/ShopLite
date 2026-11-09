@@ -1,0 +1,25 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <!-- The outermost layer: HTTP, messaging, OpenAPI and composition. No EF Core reference,
+       as in Catalog and Basket.
+
+       Note that the *message handler* lives here, next to the HTTP endpoints, not in
+       Application. Both are transport adapters: one translates a request into a command,
+       the other translates a message into the same kind of command. Putting the handler
+       deeper would drag Service Bus into a layer whose whole point is not knowing how
+       work arrives. -->
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.OpenApi" />
+    <PackageReference Include="Scalar.AspNetCore" />
+    <PackageReference Include="WolverineFx.AzureServiceBus" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\Aspire\ShopLite.ServiceDefaults\ShopLite.ServiceDefaults.csproj" />
+    <ProjectReference Include="..\..\..\Shared\ShopLite.Contracts\ShopLite.Contracts.csproj" />
+    <ProjectReference Include="..\Ordering.Application\Ordering.Application.csproj" />
+    <ProjectReference Include="..\Ordering.Infrastructure\Ordering.Infrastructure.csproj" />
+  </ItemGroup>
+
+</Project>

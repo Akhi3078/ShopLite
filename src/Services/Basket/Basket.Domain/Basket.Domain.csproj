@@ -1,0 +1,7 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- The innermost layer. Like Catalog.Domain it references nothing at all: the basket
+       rules below are expressible in plain C#, and keeping it that way is what lets the
+       compiler prove the dependency direction rather than a convention asserting it. -->
+
+</Project>

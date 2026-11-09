@@ -6,7 +6,7 @@ import { PagedResult, Product, ProductDetail, ProductInput } from './models';
 @Injectable({ providedIn: 'root' })
 export class CatalogService {
   private readonly http = inject(HttpClient);
-  private readonly base = `${environment.catalogUrl}/products`;
+  private readonly base = `${environment.gatewayUrl}/catalog/products`;
 
   list(category?: string, page = 1, pageSize = 20) {
     let params = new HttpParams().set('page', page).set('pageSize', pageSize);

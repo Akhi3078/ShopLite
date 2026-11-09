@@ -1,0 +1,142 @@
+@basket = https://localhost:7290
+@gateway = https://localhost:7260
+@identity = https://localhost:7130
+@catalog = https://localhost:7232
+
+### Liveness — is the process responsive?
+GET {{basket}}/alive
+
+### Readiness — responsive AND can reach SQL Server
+GET {{basket}}/health
+
+### OpenAPI document
+GET {{basket}}/openapi/v1.json
+
+### ──────────────────────────────────────────────────────────────────────────────
+### Every basket route needs a token: the basket is always the caller's own, keyed
+### by the sub claim. Run this first, then the rest reuse the token.
+### ──────────────────────────────────────────────────────────────────────────────
+
+### Sign in as the seeded customer
+# @name login
+POST {{identity}}/auth/login
+Content-Type: application/json
+
+{
+  "email": "customer@shoplite.local",
+  "password": "Passw0rd!"
+}
+
+@token = {{login.response.body.token}}
+
+### Find a product to add
+# @name products
+GET {{catalog}}/products?page=1&pageSize=5
+Authorization: Bearer {{token}}
+
+@productId = {{products.response.body.items[0].id}}
+
+### Get the basket — returns an empty basket, not 404, when nothing was ever added
+GET {{basket}}/basket
+Authorization: Bearer {{token}}
+
+### Add an item. Basket calls Catalog for the name and price, then snapshots them.
+POST {{basket}}/basket/items
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "productId": "{{productId}}",
+  "quantity": 2
+}
+
+### Add the same item again — this INCREMENTS the quantity.
+### Send it twice and the quantity goes up twice: that is the bug an
+### Idempotency-Key exists to prevent.
+POST {{basket}}/basket/items
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "productId": "{{productId}}",
+  "quantity": 2
+}
+
+### Now with an Idempotency-Key. Send this one as many times as you like —
+### the quantity changes once. Change the key to apply it again.
+POST {{basket}}/basket/items
+Authorization: Bearer {{token}}
+Idempotency-Key: try-me-0001
+Content-Type: application/json
+
+{
+  "productId": "{{productId}}",
+  "quantity": 2
+}
+
+### Set an absolute quantity. Naturally idempotent, so it needs no key —
+### repeat it and the answer never changes. Does not call Catalog.
+PUT {{basket}}/basket/items/{{productId}}
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "quantity": 3
+}
+
+### Quantity 0 is rejected: 400 with validation details
+PUT {{basket}}/basket/items/{{productId}}
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "quantity": 0
+}
+
+### A product Catalog does not have: 404, not 503 — Catalog answered, it just said no
+POST {{basket}}/basket/items
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "productId": "00000000-0000-0000-0000-0000000000ff",
+  "quantity": 1
+}
+
+### Remove one line
+DELETE {{basket}}/basket/items/{{productId}}
+Authorization: Bearer {{token}}
+
+### Empty the basket. Succeeds whether or not it had anything in it.
+DELETE {{basket}}/basket
+Authorization: Bearer {{token}}
+
+### No token at all: 401
+GET {{basket}}/basket
+
+### ──────────────────────────────────────────────────────────────────────────────
+### Through the gateway. Note the path is unchanged — unlike /catalog and
+### /identity, the /basket prefix is not stripped, because Basket's own resource
+### is already /basket. See ADR 0006.
+### ──────────────────────────────────────────────────────────────────────────────
+
+### The same basket, via the gateway
+GET {{gateway}}/basket
+Authorization: Bearer {{token}}
+
+### ──────────────────────────────────────────────────────────────────────────────
+### To watch the resilience pipeline: stop Catalog in the Aspire dashboard, then
+### run the add below. The first call takes seconds while retries time out; once
+### the circuit opens, the rest return in milliseconds with priceFromCache true.
+### A product Basket has never priced returns 503 instead of a guess.
+### ──────────────────────────────────────────────────────────────────────────────
+
+### Add a previously-priced product while Catalog is down
+POST {{basket}}/basket/items
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "productId": "{{productId}}",
+  "quantity": 1
+}

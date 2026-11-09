@@ -11,7 +11,7 @@ ShopLite is a microservices implementation of an e-commerce **checkout and order
 
 That slice is the point. It crosses five service boundaries, has to remain correct when any participant fails midway, and therefore exercises the problems that distinguish distributed systems from a monolith with more projects in it: eventual consistency, the dual-write problem, idempotent delivery, and distributed rollback via compensation.
 
-A role-based Angular UI sits in front of it, so the access-control rules are visible rather than described.
+A role-based Angular UI is a **required part of the system**, not a demo harness bolted on at the end. It is what makes the access-control rules observable rather than described, and it is where the distributed failure modes become visible to a person: a degraded price, a rejected write, a stale role. Every service feature is expected to be reachable through it.
 
 Out of scope by design: product search, reviews, recommendations, shipping carriers and returns.
 
@@ -78,11 +78,12 @@ The gateway is the only publicly reachable component. No service is exposed dire
 
 | Service | Responsibility | Data store | Public API |
 |---|---|---|---|
+| **shoplite-web** | Angular SPA: the system's user interface | browser storage only | **is the client** |
 | **ShopLite.Gateway** | Single entry point: routing, JWT validation, rate limiting | none | yes |
 | **Identity.Api** | Users, roles, JWT issuing | `ShopLite_Identity` | via gateway |
 | **Catalog.Api** | Product information and pricing | `ShopLite_Catalog` | via gateway |
 | **Basket.Api** | Per-customer basket; initiates checkout | Redis | via gateway |
-| **Ordering.Api** | Order lifecycle; owns the fulfilment saga | `ShopLite_Ordering` | via gateway |
+| **Ordering.Api** | Order lifecycle; owns the fulfilment saga (saga in Phase 4) | `ShopLite_Ordering` | via gateway |
 | **Inventory.Api** | Stock levels and reservations | `ShopLite_Inventory` | internal only |
 | **Payment.Api** | Payment attempts against a simulated gateway | `ShopLite_Payment` | internal only |
 | **Notification.Worker** | Customer notifications | none (stateless) | **no HTTP endpoint** |
@@ -145,6 +146,29 @@ Honest note on cost: for a CRUD service like Catalog these four layers are large
 
 ---
 
+### The user interface
+
+`src/Web/shoplite-web` — Angular 22 with Bootstrap 5, served by the Vite dev server that Aspire starts alongside the services. It talks only to the gateway, never to a service directly.
+
+| Screen | Route | Who sees it |
+|---|---|---|
+| Sign in / Register | `/login`, `/register` | anyone |
+| Products | `/products` | any signed-in user |
+| New / Edit product | `/products/new`, `/products/:id/edit` | Admin, Manager |
+| Basket | `/basket` | any signed-in user |
+| Orders | `/orders` | any signed-in user (Admin sees all) |
+| Users and roles | `/users` | Admin |
+| Forbidden | `/forbidden` | anyone refused by a guard |
+
+Two rules keep it honest:
+
+- **Every service feature owes a screen.** A capability reachable only by `curl` is not finished. This is why Phase 2 is not complete until the basket is usable in a browser.
+- **The UI never hides a degraded response.** A price served from Basket's fallback cache is badged on the line and flagged in the navbar; a 503 from an unreachable Catalog says so instead of showing a generic failure. The alternative — a silently stale price — is worse than an error.
+
+The UI is also the clearest statement of what the access-control model is *not*: the navigation and route guards are convenience, and the API check is the only thing that is security. See §10.
+
+---
+
 ## 6. Synchronous plane (HTTP)
 
 ```
@@ -165,6 +189,22 @@ Honest note on cost: for a CRUD service like Catalog these four layers are large
 Synchronous calls are confined to request/response paths where the caller cannot proceed without an answer. Exactly one service-to-service HTTP dependency exists — Basket reading prices from Catalog — and it is guarded by a resilience pipeline with a cached fallback, so Catalog being unavailable degrades basket pricing rather than failing checkout.
 
 The fulfilment pipeline contains **no synchronous service-to-service calls**. Adding one would reintroduce the deployment and availability coupling the architecture exists to avoid.
+
+### How that one dependency is wired
+
+Implemented in Phase 2 ([ADR 0006](docs/adr/0006-basket-service-and-synchronous-coupling.md)):
+
+| Concern | Choice |
+|---|---|
+| Address | `https+http://catalog`, resolved by service discovery — never a port number |
+| Contract | `ICatalogPriceReader` port in `Basket.Application`; HTTP lives in Infrastructure |
+| Pipeline | 2s per attempt · 2 retries at 200ms · breaker opens at 50% failure over 10s, for 15s |
+| Pipeline count | **One.** ServiceDefaults' process-wide handler is removed first, or 3 retries nest inside 3 and one blip becomes nine calls |
+| Fallback | Last-known price from Redis (24h TTL), flagged `priceFromCache` so staleness is visible |
+| No fallback available | 503, rather than guessing a price |
+| Auth | The caller's bearer token is relayed; client credentials is the production answer |
+
+Measured with Catalog stopped: first add **6.45s** (attempts timing out), every add after **~0.02s** once the circuit opened, 503 in 0.03s for an uncached product, and basket reads unaffected throughout.
 
 ---
 
@@ -204,18 +244,18 @@ Topics are why Service Bus **Standard** tier is the minimum: Basic has no topic 
 
 ### Message catalog
 
-| Message | Kind | Published by | Consumed by |
-|---|---|---|---|
-| `BasketCheckedOut` | event | Basket | Ordering |
-| `ReserveStock` | command | Ordering | Inventory |
-| `StockReserved` | event | Inventory | Ordering |
-| `StockUnavailable` | event | Inventory | Ordering |
-| `ProcessPayment` | command | Ordering | Payment |
-| `PaymentSucceeded` | event | Payment | Ordering |
-| `PaymentFailed` | event | Payment | Ordering |
-| `ReleaseStock` | command | Ordering | Inventory |
-| `OrderCompleted` | event | Ordering | Inventory, Notification |
-| `OrderCancelled` | event | Ordering | Notification |
+| Message | Kind | Published by | Consumed by | Status |
+|---|---|---|---|---|
+| `BasketCheckedOut` | event | Basket | Ordering | **built** |
+| `ReserveStock` | command | Ordering | Inventory | Phase 4 |
+| `StockReserved` | event | Inventory | Ordering | Phase 4 |
+| `StockUnavailable` | event | Inventory | Ordering | Phase 4 |
+| `ProcessPayment` | command | Ordering | Payment | Phase 4 |
+| `PaymentSucceeded` | event | Payment | Ordering | Phase 4 |
+| `PaymentFailed` | event | Payment | Ordering | Phase 4 |
+| `ReleaseStock` | command | Ordering | Inventory | Phase 4 |
+| `OrderCompleted` | event | Ordering | Inventory, Notification | Phase 4 |
+| `OrderCancelled` | event | Ordering | Notification | Phase 4 |
 
 ### Contracts
 
@@ -237,17 +277,19 @@ Events are versioned additively: new optional fields only. Breaking a contract r
 | `ShopLite_Inventory` | Inventory.Api |
 | `ShopLite_Payment` | Payment.Api |
 
-Locally these are four databases on one SQL Server 2022 instance; in Azure they are four Azure SQL databases on one logical server. **Separate databases on a shared instance is a legitimate implementation of the pattern** — what makes it real is the rule, not the physical separation:
+Locally these are databases on one SQL Server 2022 instance; in Azure they are Azure SQL databases on one logical server. **Separate databases on a shared instance is a legitimate implementation of the pattern** — what makes it real is the rule, not the physical separation:
 
 - One `DbContext` per service, one migration history per database
 - No cross-database queries, no three-part names
-- No service holds a connection string for another service's database
+- No service holds a connection string for another service's store
+
+Basket is the exception that proves the rule rather than breaking it: its store is Redis, not a database on this instance, and the same constraint applies — nobody else connects to it. Its fallback price cache lives there too, so "no shared store" survives the addition of a cache.
 
 Cross-database queries are impossible in Azure SQL, so the deployment target enforces this independently of developer discipline.
 
 ### Transactional outbox
 
-Each service's outbox tables live **inside that service's own database**. This is a correctness requirement, not a convention: the outbox exists so that a state change and the publication of its event commit in a single transaction. Placing the outbox in a separate or shared database reinstates the dual-write problem it was introduced to solve.
+Each service's outbox lives **inside that service's own store** — note *store*, not *table*: Basket's is a Redis list, because Basket's state is in Redis. ([ADR 0008](docs/adr/0008-asynchronous-messaging.md)) This is a correctness requirement, not a convention: the outbox exists so that a state change and the publication of its event commit in a single transaction. Placing the outbox in a separate or shared database reinstates the dual-write problem it was introduced to solve.
 
 ```
   BEGIN TRANSACTION
@@ -344,7 +386,7 @@ var sb  = builder.AddAzureServiceBus("messaging").RunAsEmulator();
 |---|---|---|
 | Compute | local processes | Azure Container Apps |
 | Relational data | local SQL Server 2022 instance | Azure SQL Database |
-| Messaging | Service Bus emulator container | Azure Service Bus, Standard |
+| Messaging | **RabbitMQ** container (the Service Bus emulator does not work — ADR 0008) | Azure Service Bus, Standard |
 | Cache | Redis container | Redis container app |
 | Identity | `Identity.Api` + local SQL Server | `Identity.Api` on Container Apps + Azure SQL |
 | Web UI | Angular dev server (Vite) | static files on Container Apps |
@@ -364,15 +406,18 @@ Phases 1–6 run entirely locally; Azure deployment is Phase 7. Development does
 | Decision | Rationale | Cost accepted |
 |---|---|---|
 | Saga orchestration over choreography | Sequence and failure handling are readable in one place | Ordering becomes a coordination hub |
-| Azure Service Bus over RabbitMQ | Managed service, Managed Identity, KEDA, portal tracing | ~$10/month; local emulator is unsupported and incomplete |
+| Azure Service Bus over RabbitMQ, for deployment | Managed service, Managed Identity, KEDA, portal tracing | ~$10/month; and its emulator proved unusable, so local development runs RabbitMQ instead — what is tested is not quite what ships ([ADR 0008](docs/adr/0008-asynchronous-messaging.md)) |
 | Wolverine over MassTransit | MassTransit v9 is commercially licensed; v8 is in maintenance | Smaller community and fewer tutorials |
 | No MediatR / AutoMapper | Both moved to commercial licensing | Hand-written mapping and dispatch |
 | Database per service on a shared instance | Preserves the rule at realistic cost | Isolation is enforced by convention locally, by Azure SQL in deployment |
-| Redis for Basket | Basket is ephemeral key-value data with a natural TTL | A second storage technology to operate |
+| Redis for Basket | Basket is ephemeral key-value data with a natural TTL, and the TTL is one argument to a set rather than a scheduled sweep ([ADR 0007](docs/adr/0007-basket-on-redis.md)) | A second storage technology to operate, and Docker becomes required to run the project |
+| Fallback price cache in Basket's own store | A circuit breaker fails fast, not softly — something has to answer when Catalog is down | Prices are stale by up to the 24h TTL; staleness is surfaced on the response |
+| `Idempotency-Key` on add-item only | Add increments, so a retry double-counts; set-quantity assigns, so it cannot | One operation has a dedupe mechanism and its neighbour does not, which looks inconsistent until you read why |
+| Token relay from Basket to Catalog | No new infrastructure, and the caller's identity is preserved end to end | Basket can do anything its caller can; client credentials is the production answer |
 | ASP.NET Core Identity over Keycloak | A schema we own and can inspect; no extra container; shows how a JWT is minted and validated | No SSO, social login, MFA or password reset without building them (§16) |
 | Roles as JWT claims, not a lookup | No network hop per request; Catalog survives Identity being down | A role change applies only at next sign-in |
 | Symmetric JWT signing | One shared key, no key distribution to set up | Every service holds a key that can also mint tokens — wrong for production |
-| Angular + Bootstrap UI | Makes role-based access visible instead of theoretical | Frontend surface area unrelated to distribution |
+| Angular + Bootstrap UI, treated as required | Makes role-based access and degraded responses visible instead of theoretical | Frontend surface area unrelated to distribution, and every new service feature now owes a screen |
 
 ---
 

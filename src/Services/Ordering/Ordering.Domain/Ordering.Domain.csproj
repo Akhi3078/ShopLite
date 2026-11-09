@@ -1,0 +1,8 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- The innermost layer, referencing nothing — as in Catalog and Basket.
+       Note it does NOT reference ShopLite.Contracts either. Messages are a transport
+       concern: the domain must not be shaped by what arrives on a queue, or changing a
+       message would change the model. Translation happens at the edge. -->
+
+</Project>

@@ -1,15 +1,7 @@
 /**
- * API locations for local development.
- *
- * These are the fixed ports from each service's Properties/launchSettings.json, which
- * Aspire reuses when it starts them. They are hardcoded deliberately: the alternative
- * is build-time variable substitution, which adds tooling for no benefit while every
- * service runs on this machine.
- *
- * Phase 2 adds the YARP gateway, after which both of these collapse into a single
- * origin and this file becomes one line.
+ * The browser uses the gateway as its single API entry point in local development.
+ * Aspire starts it on the fixed HTTPS port from ShopLite.Gateway's launch profile.
  */
 export const environment = {
-  identityUrl: 'https://localhost:7130',
-  catalogUrl: 'https://localhost:7232',
+  gatewayUrl: 'https://localhost:7260',
 };

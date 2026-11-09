@@ -47,13 +47,13 @@ export class AuthService {
 
   login(email: string, password: string) {
     return this.http
-      .post<AuthResponse>(`${environment.identityUrl}/auth/login`, { email, password })
+      .post<AuthResponse>(`${environment.gatewayUrl}/identity/auth/login`, { email, password })
       .pipe(tap((response) => this.store(response)));
   }
 
   register(email: string, password: string, displayName: string) {
     return this.http
-      .post<AuthResponse>(`${environment.identityUrl}/auth/register`, {
+      .post<AuthResponse>(`${environment.gatewayUrl}/identity/auth/register`, {
         email,
         password,
         displayName,

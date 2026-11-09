@@ -30,7 +30,7 @@ Current machine state (checked 2026-11-04):
 - [x] Install the **.NET 10 SDK** — installed 10.0.403 (LTS, supported to 2028-11-14)
 - [x] `dotnet tool install -g aspire.cli` — Aspire CLI 13.6.4
 - [x] `dotnet tool update -g dotnet-ef` — EF tools must match the runtime major; 9.0.6 was upgraded to 10.0.14
-- [ ] Confirm Docker Desktop is actually running (not needed until Phase 2)
+- [x] Confirm Docker Desktop is actually running — required from Phase 2 onward, since Basket runs on a Redis container
 - [x] Create `global.json` pinning the SDK, so the .NET 11 RC is never picked up by accident
 - [x] `git init` in this folder
 
@@ -48,6 +48,7 @@ Needed later, at Phase 7 (not now):
 2. **Database per service.** Never a shared database, not even temporarily.
 3. **Build services 1–3 before scaffolding the rest.** Six half-built services is the most common way this project dies.
 4. **Every step ends with a commit and a short ADR** in `docs/adr/` — what was chosen, what was given up. This habit is most of what makes it a portfolio project rather than a folder of tutorial code.
+5. **The UI is required, not optional.** Every service feature must be reachable from the Angular app before the phase counts as done. A capability that only works from `curl` or a `.http` file is unfinished — and it is in the UI that distributed behaviour stops being abstract: a cached price, a refused write, a role that only applies after signing in again.
 
 ---
 
@@ -73,12 +74,24 @@ Worth reading before moving on: `src/Aspire/ShopLite.ServiceDefaults/Extensions.
 
 ### Phase 2 — Two services and synchronous coupling (~1 week)
 
-- [ ] A second service with its **own database**
-- [ ] Typed `HttpClient` + service discovery between the two
-- [ ] `Microsoft.Extensions.Http.Resilience` (Polly v8): timeout, retry, circuit breaker
-- [ ] Understand why retry without idempotency is a bug
-- [ ] **YARP** gateway: routing, path transforms, single public entry point
-- [ ] Deliberately kill service B, watch service A fail, then fix it with a circuit breaker + fallback
+- [x] A second service with its **own store** — Basket.Api on **Redis**, as an Aspire-managed container ([ADR 0006](docs/adr/0006-basket-service-and-synchronous-coupling.md), [ADR 0007](docs/adr/0007-basket-on-redis.md))
+- [x] Typed `HttpClient` + service discovery between the two — `ICatalogPriceReader`, resolved via `https+http://catalog`
+- [x] `Microsoft.Extensions.Http.Resilience` (Polly v8): timeout, retry, circuit breaker — 2s per attempt, 2 retries, breaker opens at 50% over 10s
+- [x] Understand why retry without idempotency is a bug — `Idempotency-Key` on add-item, deduped by primary key; measured below
+- [x] **YARP** gateway: routing, path transforms, single browser-facing API entry point
+- [x] Deliberately kill service B, watch service A fail, then fix it with a circuit breaker + fallback
+
+**What the kill test actually showed.** With Catalog stopped, adding a product whose price was
+already cached: first call 6.45s (three attempts timing out), then **0.02s** for every call
+after — the circuit had opened and was failing fast into the cache. Adding a product with no
+cached price returned 503 in 0.03s rather than guessing a price. Reads of the basket never
+touched Catalog at all.
+
+The lesson that is easy to miss: a circuit breaker **fails fast, not softly**. It stops the
+retry storm; it does not keep the feature working. The fallback cache is what does that, and
+it has to be built separately.
+
+- [x] A basket screen in the Angular UI, with add-to-basket on the product list
 
 **Checkpoint:** being able to explain why "just call the other service's API" doesn't scale — latency stacking, cascading failure, deployment coupling.
 
@@ -86,13 +99,15 @@ Worth reading before moving on: `src/Aspire/ShopLite.ServiceDefaults/Extensions.
 
 This is where microservices actually start. Do not rush it.
 
-- [ ] **Azure Service Bus**, run locally via the Service Bus emulator container + **Wolverine** (use the library; the raw `Azure.Messaging.ServiceBus` client teaches plumbing, not patterns)
-- [ ] **Queues vs topics** — point-to-point vs publish/subscribe, and why topics force Standard tier in Azure
-- [ ] **Commands vs events** — one recipient with an imperative name, vs many recipients with a past-tense name
-- [ ] Integration events in a shared `Contracts` project — and why that project must never contain domain logic
-- [ ] **Transactional Outbox** — write the event to your own DB in the same transaction as the state change, publish later. Hand-roll it once before switching to Wolverine's durable SQL Server outbox.
-- [ ] **At-least-once delivery** → idempotent consumers, dedupe by message ID
-- [ ] Dead-letter queues, retry with backoff, poison messages
+- [x] **Wolverine** over a broker — **RabbitMQ locally, Azure Service Bus when deployed**. The Service Bus emulator could not deliver a topic message without a subscription rule and crashed when given one ([ADR 0008](docs/adr/0008-asynchronous-messaging.md))
+- [x] **Queues vs topics** — `basket-checked-out` is a topic with a subscription per consumer on Service Bus, a fanout exchange with a queue per consumer on RabbitMQ. Either way a second consumer needs no change to the publisher
+- [x] **Commands vs events** — `BasketCheckedOut` is past tense and Basket does not know Ordering exists
+- [x] Integration events in a shared `ShopLite.Contracts` project — message records only, and deliberately zero package references
+- [x] **Transactional Outbox** — hand-rolled in Basket, in Redis, atomic with the basket delete via `MULTI`/`EXEC`
+- [x] **At-least-once delivery** → `ProcessedMessages` keyed on message id, checked before writing and enforced by the primary key (verified: duplicate insert rejected with SQL error 2627)
+- [x] Dead-letter queues, retry with backoff, poison messages — 200ms / 1s / 5s then dead-letter; validation failures dead-letter immediately
+- [x] Ordering service + an orders screen in the UI
+- [ ] Switch the hand-rolled outbox to Wolverine's durable outbox (deliberately after building one by hand)
 
 **Checkpoint:** being able to describe the dual-write problem and three ways it bites.
 
@@ -344,10 +359,10 @@ Basket uses Redis; Notification.Worker holds no state. The `ShopLite_` prefix ma
 
 - [x] 1. `global.json`, solution, Aspire AppHost + ServiceDefaults, `git init`, first commit
 - [x] 2. Catalog.Api end to end — SQL Server, migrations, CRUD, OpenAPI, health checks, visible in the dashboard
-- [ ] 3. Gateway in front of Catalog
-- [ ] 4. Basket.Api on Redis; Basket calls Catalog synchronously to price items → add resilience, then break it on purpose
-- [ ] 5. Service Bus emulator into the AppHost; Basket publishes `BasketCheckedOut`; Ordering consumes it
-- [ ] 6. Ordering's outbox, hand-rolled first
+- [x] 3. Gateway in front of Catalog and Identity; Angular API calls use the gateway
+- [x] 4. Basket.Api on Redis; Basket calls Catalog synchronously to price items → resilience added, then broken on purpose
+- [x] 5. Service Bus emulator into the AppHost; Basket publishes `BasketCheckedOut`; Ordering consumes it
+- [x] 6. Outbox, hand-rolled first — in **Basket** rather than Ordering, because that is where the dual write is in this flow. Ordering gets one in Phase 4 when it starts publishing ([ADR 0008](docs/adr/0008-asynchronous-messaging.md))
 - [ ] 7. Inventory + Payment, then the saga coordinating all four with compensation
 - [x] 8. Identity service, role-based authorization, Angular UI (built ahead of order)
 - [ ] 8b. Move auth enforcement to the gateway once it exists, and drop per-service CORS

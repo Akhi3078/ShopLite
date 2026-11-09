@@ -1,8 +1,10 @@
 import { CurrencyPipe } from '@angular/common';
+import { HttpErrorResponse } from '@angular/common/http';
 import { Component, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { AuthService } from '../../core/auth.service';
+import { BasketService } from '../../core/basket.service';
 import { CatalogService } from '../../core/catalog.service';
 import { Product, Role } from '../../core/models';
 
@@ -13,6 +15,7 @@ import { Product, Role } from '../../core/models';
 })
 export class ProductList {
   private readonly catalog = inject(CatalogService);
+  private readonly basket = inject(BasketService);
 
   protected readonly auth = inject(AuthService);
 
@@ -22,6 +25,10 @@ export class ProductList {
   protected readonly error = signal<string | null>(null);
   protected readonly category = signal('');
   protected readonly deletingId = signal<string | null>(null);
+  protected readonly addingId = signal<string | null>(null);
+
+  /** Which product was last added, to confirm it briefly without a toast library. */
+  protected readonly addedId = signal<string | null>(null);
 
   constructor() {
     this.load();
@@ -46,6 +53,45 @@ export class ProductList {
         // Anything reaching here is a genuine failure worth showing.
         this.error.set('Could not load products. Is the Catalog service running?');
         this.loading.set(false);
+      },
+    });
+  }
+
+  /**
+   * Adds one of this product to the basket.
+   *
+   * Worth knowing what this one click sets off on the server: Basket calls Catalog over
+   * HTTP for the price, wrapped in a timeout, two retries and a circuit breaker, and
+   * falls back to a cached price if Catalog cannot answer. If even that is unavailable
+   * the request fails with 503 — which is the message handled below, and the reason this
+   * button can fail in a way the Delete button next to it cannot.
+   */
+  protected addToBasket(product: Product): void {
+    this.addingId.set(product.id);
+    this.error.set(null);
+
+    this.basket.addItem(product.id, 1).subscribe({
+      next: () => {
+        this.addingId.set(null);
+        this.addedId.set(product.id);
+
+        // Clear the confirmation after a moment. Deliberately not a timer stored on the
+        // component: if the user navigates away, the stale set lands on a destroyed
+        // component and Angular does not care, because signals are not change detection.
+        setTimeout(() => {
+          if (this.addedId() === product.id) {
+            this.addedId.set(null);
+          }
+        }, 2000);
+      },
+      error: (response: HttpErrorResponse) => {
+        this.addingId.set(null);
+
+        this.error.set(
+          response.status === 503
+            ? `"${product.name}" could not be priced: the Catalog service is unavailable and Basket had no cached price for it.`
+            : `Could not add "${product.name}" to your basket.`,
+        );
       },
     });
   }

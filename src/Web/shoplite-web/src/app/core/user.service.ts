@@ -6,7 +6,7 @@ import { UserListItem } from './models';
 @Injectable({ providedIn: 'root' })
 export class UserService {
   private readonly http = inject(HttpClient);
-  private readonly base = `${environment.identityUrl}/users`;
+  private readonly base = `${environment.gatewayUrl}/identity/users`;
 
   list() {
     return this.http.get<UserListItem[]>(this.base);
